@@ -1,0 +1,21 @@
+application: your-app-id
+version: v1
+runtime: python27
+api_version: 1
+threadsafe: false
+
+env_variables:
+  # "BUCKET_NAME": ""
+
+libraries:
+- name: webapp2
+  version: "2.5.2"
+- name: jinja2
+  version: latest
+
+handlers:
+- url: /external/live-editor
+  static_dir: "external/live-editor"
+
+- url: /.*
+  script: main.app

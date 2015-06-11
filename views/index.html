@@ -1,0 +1,201 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Live Editor Record Demo</title>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.core_deps.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.audio.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.tooltips.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.ui.css"/>
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        h1 {
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        #sample-live-editor {
+            padding: 0;
+        }
+        .save-recording {
+            float: right;
+        }
+
+        button {
+            border-radius: 3px;
+            border: 1px solid #e6e6e6;
+            text-shadow: none;
+            background-color: #e7e7e7;
+            background-image: linear-gradient(to bottom,#eee,#dcdcdc);
+            background-repeat: repeat-x;
+            filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffeeeeee',endColorstr='#ffdcdcdc',GradientType=0);
+            border-color: #dcdcdc #dcdcdc #b6b6b6;
+            border-color: rgba(0,0,0,0.1) rgba(0,0,0,0.1) rgba(0,0,0,0.25);
+            filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
+            color: #444!important;
+            padding: 5px 10px;
+            
+            cursor: pointer;
+            font-family: inherit;
+            line-height: 20px;
+            margin: 0;
+            position: relative;
+            text-decoration: none!important;
+            transition: box-shadow ease-in-out .15s;
+            -webkit-appearance: none;
+        }
+        
+        button:disabled {
+            background: white;
+            cursor: default;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Live Editor Audio Demo</h1>
+    <p>
+        <input type="text" id="recording-name">
+    </p>
+    <div id="sample-live-editor"></div>
+    
+    <p>
+        <button class="save-recording" disabled>Save Recording</button>
+    </p>
+
+    <div class="recording-list">
+        {% if recordings|length %}
+            <h3>List of saved recordings:</h3>
+            <ul>
+                {% for recording in recordings %}
+                    <li>
+                        {{ recording.name }} - <a href="/recording/{{ recording.key.id() }}">go to</a>
+                    </li>
+                {% endfor %}
+            </ul>
+                    
+        {% else %}
+            <h4>Hit the record button to start a new recording.</h4>
+        {% endif %}
+    </div>
+
+    <script src="{{ live_editor }}/build/js/live-editor.core_deps.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.editor_ace_deps.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.audio.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.shared.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.tooltips.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.ui.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.editor_ace.js"></script>
+
+    <script>
+    var version = "3";
+    window.liveEditor = new LiveEditor({
+        el: $("#sample-live-editor"),
+        code: window.localStorage["test-code"] || "rect(10, 10, 100, 100);",
+        version: version,
+        width: 400,
+        height: 400,
+        workersDir: "{{ live_editor }}/build/workers/",
+        externalsDir: "{{ live_editor }}/build/external/",
+        imagesDir: "{{ live_editor }}/build/images/",
+        execFile: "{{ live_editor }}/demos/simple/output.html",
+        jshintFile: "{{ live_editor }}/build/external/jshint/jshint.js",
+
+        // add the transloadit keys
+        // transloaditAuthKey: "TRANSLOAD_AUTH_KEY",
+        // transloaditTemplate: "TRANSLOAD_TEMPLATE_ID"
+    });
+    liveEditor.editor.on("change", function() {
+        window.localStorage["test-code"] = liveEditor.editor.text();
+    });
+    ScratchpadAutosuggest.init(liveEditor.editor.editor);
+
+    // when the first chunk is saved, enable the save recording button
+    $("#record").on("click", function() {
+        $(".scratchpad-dev-save-chunk").on("click", function() {
+            $(".save-recording").attr("disabled", false);
+        });
+    });
+
+    $(".save-recording").on("click", function(el) {
+
+        var playback = liveEditor.record.dumpRecording();
+        playback.init.configVersions = version;
+
+        var recordingName = $("#recording-name").val();
+        if( !recordingName ) {
+            alert("Please enter a name for the recording!");
+            return;
+        }
+
+        $(this).attr("disabled", true);
+
+        // save the recording, get its id
+        $.ajax({
+            url: "/save",
+            method: "post",
+            data: {
+                "name": recordingName, 
+                "playback": JSON.stringify(playback)
+            },
+            success: function(recording_id) {
+                console.log(recording_id);
+                console.log("Starting audio upload.");
+                
+                // Save the actual recording and upload it to the storage server
+                var path = "live-editor/" + recording_id + "/audio.${file.ext}";
+                
+                var templateSteps = {
+                    export: { path: path }
+                };
+
+                // save the audio
+                liveEditor.saveRecording(function(err, recordingMP3) {
+                    // sometimes the api doesn't find the assembly, when the recording is too short
+                    if(err) {
+                        alert("The recording might have not been saved! Please refresh.")
+                        console.warn(err);
+                    
+                        $(this).attr("disabled", false);
+                    
+                        $.ajax({
+                            url: "/recording/" + recording_id,
+                            method: "delete"
+                        });
+                        return;
+                    }
+                    
+                    console.log("Saved to S3, the url is:");
+                    console.log(recordingMP3);
+
+                    // if we have the mp3 url, add it to the recording
+                    if (recordingMP3) {
+                        $.ajax({
+                            url: "/save",
+                            method: "put",
+                            data: {
+                                mp3: recordingMP3,
+                                id: recording_id
+                            },
+                            success: function(response) {
+                                window.localStorage["test-code"] = "";
+                                window.location.reload();
+                            },
+                            error: function(response) {
+                                console.log(response);
+                            }
+                        });
+                    }
+                }, templateSteps);
+            },
+            error: function(response) {
+                console.warn(response);
+            }
+        });
+    });
+
+    </script>
+</body>
+</html>

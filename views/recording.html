@@ -1,0 +1,83 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Live Editor Record Demo</title>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.core_deps.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.audio.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.tooltips.css"/>
+    <link rel="stylesheet" href="{{ live_editor }}/build/css/live-editor.ui.css"/>
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        h1 {
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        #sample-live-editor {
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Live Editor Audio Demo</h1>
+    <p>
+        <a href="/">Home</a>
+    </p>
+    <div id="sample-live-editor"></div>
+
+
+    <div class="recording-list">
+        {% if recordings|length %}
+            <h3>List of saved recordings:</h3>
+            <ul>
+                {% for recording in recordings %}
+                    <li>
+                        {{ recording.name }} - <a href="/recording/{{ recording.key.id() }}">go to</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <script src="{{ live_editor }}/build/js/live-editor.core_deps.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.editor_ace_deps.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.audio.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.shared.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.tooltips.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.ui.js"></script>
+    <script src="{{ live_editor }}/build/js/live-editor.editor_ace.js"></script>
+
+    <script>
+    // function used to escape control characters that cause issues in JSON
+    function jsonEscape(str)  {
+        return str.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+    }
+
+    var playbackJsonString = '{{ recording.playback|safe }}';
+    var playback = jQuery.parseJSON( jsonEscape(playbackJsonString) );
+
+    window.liveEditor = new LiveEditor({
+        el: $("#sample-live-editor"),
+        code: playback.init.code,
+        version: playback.init.configVersion,
+        recordingMP3: '{{ recording.mp3 }}',
+        recordingCommands: playback.commands,
+        recordingInit: playback.init,
+
+        width: 400,
+        height: 400,
+        workersDir: "{{ live_editor }}/build/workers/",
+        externalsDir: "{{ live_editor }}/build/external/",
+        imagesDir: "{{ live_editor }}/build/images/",
+        execFile: "{{ live_editor }}/demos/simple/output.html",
+        jshintFile: "{{ live_editor }}/build/external/jshint/jshint.js"
+    });
+
+    ScratchpadAutosuggest.init(liveEditor.editor.editor);
+
+    </script>
+</body>
+</html>
