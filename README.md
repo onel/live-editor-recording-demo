@@ -12,6 +12,7 @@ The demo uses a local app engine server to save the recordings, translodit for e
 #### Setup
 1. download the python [app engine sdk](https://cloud.google.com/appengine/downloads)
 2. clone this repo
+3. clone submodues with `git submodule update --init --recursive`
 3. create a free account with [transloadit.com](www.transloadit.com)
 4. in your account, create a new template which should look like this:
 ```json
