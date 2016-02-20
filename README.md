@@ -36,7 +36,7 @@ The demo uses a local app engine server to save the recordings, translodit for e
     * `transloaditTemplate`: found [here](https://transloadit.com/templates)
 6. cd into the project's folder, and run
 ```
-gcloud preview app run ./app.yaml
+https://cloud.google.com/sdk/release_notes#0988_20151125 ./app.yaml
 ```
 7. go to [localhost:8080](http://localhost:8080)
 8. hit **Record**
